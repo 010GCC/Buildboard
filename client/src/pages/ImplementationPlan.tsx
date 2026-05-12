@@ -19,13 +19,13 @@ function buildPlanMarkdown(done: Set<string>, totalDone: number, total: number, 
     "",
   ];
 
-  for (const [index, stage] of STAGES.entries()) {
+  STAGES.forEach((stage, index) => {
     const moduleIds = STAGE_TO_MODULES[stage.id];
     lines.push(`### ${index + 1}. ${stage.title}`);
     lines.push("");
     lines.push(stage.description);
     lines.push("");
-    lines.push(`Modules: ${moduleIds.map((id) => MODULES.find((m) => m.id === id)?.title).filter(Boolean).join(", ")}`);
+    lines.push(`Modules: ${moduleIds.map((id: string) => MODULES.find((m) => m.id === id)?.title).filter(Boolean).join(", ")}`);
     lines.push("");
     for (const moduleId of moduleIds) {
       const mod = MODULES.find((m) => m.id === moduleId);
@@ -36,7 +36,7 @@ function buildPlanMarkdown(done: Set<string>, totalDone: number, total: number, 
       }
       lines.push("");
     }
-  }
+  });
 
   lines.push("## Dependency summary");
   lines.push("");
