@@ -37,13 +37,15 @@ Build a **vendor-neutral knowledge and planning surface** for teams who design, 
 10. **Scope with templates** — answer stage-specific QA prompts that define the project scope.
 11. **Generate project markdown** — compile stage QA into `project.md` as the canonical input file for planning.
 12. **Create LLM prompt package** — wrap `project.md` in model-specific instructions for the user's LLM of choice.
+13. **Optional runtime generation via Ollama** — when the backend is configured with `OLLAMA_BASE_URL`, the LLM prompt package can be sent to `POST /api/generate-plan` to produce a finished plan that can be copied or downloaded as `final-plan.md`. The route returns 503 when AI generation is not configured, and the rest of the prompt-backend workflow works without it.
 
 ## 4. Non-Goals
 - No actual code execution, terminal, or runtime sandbox.
 - No real external service integration (Stripe, MCP, etc.) — modeled conceptually.
 - No authentication, accounts, or multi-tenant data.
 - No browser persistence layer of any kind; transient UI state stays in React state, while named plan snapshots are stored through the backend database.
-- No live LLM dependency by default; the app generates copyable/downloadable prompt packages that can be used with the chosen model.
+- No live LLM dependency by default; the app generates copyable/downloadable prompt packages that can be used with the chosen model. An optional Ollama-compatible backend integration is supported via `OLLAMA_BASE_URL` / `OLLAMA_API_KEY` / `OLLAMA_MODEL`, but it is not required.
+- No API keys are ever stored in the browser or sent from the client; only the backend reads `OLLAMA_API_KEY`.
 - No imitation of any vendor's product UI, logo, or color palette.
 - Not a Replit replacement, fork, or compatibility layer.
 

@@ -9,6 +9,14 @@
 - Command: `npm run dev`
 - Port: 5000 (Express + Vite on the same port).
 
+## Ollama-backed generation (optional)
+- Route: `POST /api/generate-plan` accepts `{ promptPackage, projectName?, model? }`, validates with Zod, and rejects empty prompts with HTTP 400.
+- Reads config from env only: `OLLAMA_BASE_URL`, `OLLAMA_API_KEY`, `OLLAMA_MODEL`. The API key is never sent to the client.
+- When `OLLAMA_BASE_URL` is unset, the route returns HTTP 503 with a clear JSON message — the rest of the app continues to work.
+- Tries `/api/chat` first, falls back to `/api/generate` for older Ollama deployments. Normalizes the upstream response to `{ plan, model }`.
+- Frontend `PromptBackend` page exposes a `Generate with Ollama` button that POSTs via `apiRequest`, shows loading and error state, and provides copy/download for `final-plan.md`.
+- Generated plans are held in component state only in this iteration; the `project_specs` schema was intentionally not migrated to keep this change low-risk.
+
 ## QA performed
 - Production build passed with `npm run build`.
 - Production server smoke-tested with `NODE_ENV=production node dist/index.cjs` on port 5000.
@@ -26,7 +34,7 @@
 - Notes view renders markdown as preformatted text plus a heading parser; no full Markdown engine — keeps the bundle small.
 - Dependency graph is conceptual and manually positioned for readability; it is not a force-directed graph engine.
 - Saved named plans are backend database snapshots, not account-scoped collaborative records.
-- Prompt backend generates LLM-ready packages but does not call an LLM at runtime.
+- Prompt backend generates LLM-ready packages and can optionally call an Ollama-compatible runtime via `POST /api/generate-plan` when the backend env vars are configured; copy/download remain the default handoff path when AI generation is not configured.
 - Agent/Editor sub-stages are summarized; deeper sub-flows can be added as separate routes if scope expands.
 
 ## Independence audit
