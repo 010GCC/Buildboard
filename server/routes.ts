@@ -3,6 +3,12 @@ import { createServer } from 'node:http';
 import type { Server } from 'node:http';
 import { storage } from "./storage";
 import { insertProjectSpecSchema, insertSavedPlanSchema } from "@shared/schema";
+import {
+  callOllamaGeneratePlan,
+  generatePlanRequestSchema,
+  OllamaError,
+  readOllamaConfig,
+} from "./ollama";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -68,6 +74,45 @@ export async function registerRoutes(
       return;
     }
     res.status(204).end();
+  });
+
+  app.post("/api/generate-plan", async (req, res) => {
+    const parsed = generatePlanRequestSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({
+        message: "Invalid generate-plan request",
+        errors: parsed.error.flatten(),
+      });
+      return;
+    }
+
+    const config = readOllamaConfig();
+    if (!config.baseUrl) {
+      res.status(503).json({
+        message:
+          "AI generation is not configured on this server. Set OLLAMA_BASE_URL (and optionally OLLAMA_API_KEY and OLLAMA_MODEL) in the backend environment to enable it.",
+        configured: false,
+      });
+      return;
+    }
+
+    try {
+      const result = await callOllamaGeneratePlan(
+        { ...config, baseUrl: config.baseUrl },
+        parsed.data,
+      );
+      res.json(result);
+    } catch (err) {
+      if (err instanceof OllamaError) {
+        res.status(err.status).json({
+          message: err.message,
+          detail: err.detail,
+        });
+        return;
+      }
+      const message = err instanceof Error ? err.message : "Unknown error generating plan";
+      res.status(500).json({ message });
+    }
   });
 
   return httpServer;

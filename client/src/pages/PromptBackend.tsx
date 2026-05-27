@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { CheckCircle2, Copy, Download, FileText, Save, Trash2, Wand2 } from "lucide-react";
+import { CheckCircle2, Copy, Download, FileText, Loader2, Save, Sparkles, Trash2, Wand2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -106,7 +106,9 @@ export default function PromptBackend() {
   const [selectedStage, setSelectedStage] = useState(STAGES[0].id);
   const [answers, setAnswers] = useState<Answers>({});
   const [status, setStatus] = useState("");
-  const [copied, setCopied] = useState<"project" | "prompt" | "">("");
+  const [copied, setCopied] = useState<"project" | "prompt" | "plan" | "">("");
+  const [generatedPlan, setGeneratedPlan] = useState<string>("");
+  const [generatedPlanModel, setGeneratedPlanModel] = useState<string>("");
 
   const projectMarkdown = useMemo(
     () => buildProjectMarkdown(projectName, selectedModel, answers),
@@ -143,6 +145,27 @@ export default function PromptBackend() {
     onError: (error: Error) => setStatus(error.message || "Could not save project prompt package."),
   });
 
+  const generateMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", "/api/generate-plan", {
+        promptPackage,
+        projectName: projectName.trim() || undefined,
+        model: selectedModel,
+      });
+      return response.json() as Promise<{ plan: string; model: string }>;
+    },
+    onSuccess: (result) => {
+      setGeneratedPlan(result.plan);
+      setGeneratedPlanModel(result.model);
+      setStatus(`Generated finished plan with ${result.model}.`);
+    },
+    onError: (error: Error) => {
+      setGeneratedPlan("");
+      setGeneratedPlanModel("");
+      setStatus(error.message || "Could not generate finished plan.");
+    },
+  });
+
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
       await apiRequest("DELETE", `/api/project-specs/${id}`);
@@ -156,7 +179,7 @@ export default function PromptBackend() {
 
   const stageQuestions = SCOPE_QUESTIONS.filter((q) => q.stage === selectedStage);
 
-  async function copyText(kind: "project" | "prompt", text: string) {
+  async function copyText(kind: "project" | "prompt" | "plan", text: string) {
     try {
       await navigator.clipboard.writeText(text);
       setCopied(kind);
@@ -366,6 +389,77 @@ export default function PromptBackend() {
             <pre className="max-h-[320px] overflow-auto whitespace-pre-wrap break-words p-4 font-mono text-[11.5px] leading-relaxed" data-testid="text-llm-prompt-preview">
               {promptPackage}
             </pre>
+          </div>
+
+          <div className="rounded-lg border border-card-border bg-card overflow-hidden" data-testid="panel-generated-plan">
+            <header className="flex items-center justify-between gap-3 border-b border-border bg-background/40 px-4 py-3">
+              <div>
+                <h2 className="text-[13px] font-semibold tracking-tight">Generated finished plan</h2>
+                <p className="mt-0.5 text-[11.5px] text-muted-foreground">
+                  Runs the LLM prompt against a backend-configured Ollama endpoint. No key is sent from the browser.
+                </p>
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => generateMutation.mutate()}
+                disabled={generateMutation.isPending}
+                data-testid="button-generate-plan"
+                className="gap-2"
+              >
+                {generateMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Sparkles className="h-4 w-4" />
+                )}
+                {generateMutation.isPending ? "Generating…" : "Generate with Ollama"}
+              </Button>
+            </header>
+            {generatedPlan ? (
+              <>
+                <div className="flex items-center justify-between gap-3 border-b border-border bg-background/20 px-4 py-2">
+                  <span className="text-[11.5px] text-muted-foreground" data-testid="text-generated-plan-model">
+                    Model: <span className="font-mono">{generatedPlanModel || "unknown"}</span>
+                  </span>
+                  <div className="flex gap-1">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => copyText("plan", generatedPlan)}
+                      data-testid="button-copy-generated-plan"
+                      className="gap-2"
+                    >
+                      {copied === "plan" ? <CheckCircle2 className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                      Copy
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => downloadText("final-plan.md", generatedPlan)}
+                      data-testid="button-download-generated-plan"
+                      className="gap-2"
+                    >
+                      <Download className="h-4 w-4" />
+                      Download
+                    </Button>
+                  </div>
+                </div>
+                <pre
+                  className="max-h-[320px] overflow-auto whitespace-pre-wrap break-words p-4 font-mono text-[11.5px] leading-relaxed"
+                  data-testid="text-generated-plan-preview"
+                >
+                  {generatedPlan}
+                </pre>
+              </>
+            ) : (
+              <p className="px-4 py-6 text-[12px] text-muted-foreground" data-testid="text-generated-plan-empty">
+                No generated plan yet. Click <span className="font-medium">Generate with Ollama</span> to call the
+                configured backend model. If the backend is not configured the request returns a 503 explaining how to
+                enable AI generation.
+              </p>
+            )}
           </div>
 
           <div className="rounded-lg border border-card-border bg-card p-4" data-testid="card-save-project-spec">

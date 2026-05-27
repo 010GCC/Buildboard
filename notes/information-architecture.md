@@ -34,6 +34,8 @@ A persistent **Workflow Map** sits at the bottom of the sidebar — a compact di
 - A prompt package wraps `project.md` with instructions for the chosen model so the user can create a finished plan in the LLM of choice.
 - Prompt packages are saved in `project_specs` with project name, selected model, answers JSON, generated markdown, and generated prompt.
 - The app does not require a live model connection; copy/download are the default handoff paths.
+- Optional runtime generation is available via `POST /api/generate-plan`, which forwards the prompt package to an Ollama-compatible endpoint when the backend env vars `OLLAMA_BASE_URL`, `OLLAMA_API_KEY`, and `OLLAMA_MODEL` are configured. The generated plan is returned to the client for copy/download as `final-plan.md` and is held in component state only; nothing is persisted to the database in this iteration. The API key is read on the server only and never exposed to the browser.
+- When the backend is not configured, `/api/generate-plan` returns HTTP 503 with a clear explanation; the rest of the prompt-backend workflow continues to work.
 
 ## Modules (canonical IDs)
 | ID            | Title             | Stage in pipeline       |
